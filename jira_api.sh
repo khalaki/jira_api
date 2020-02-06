@@ -140,7 +140,7 @@ fi
 { # try
   #Get git parameters
   GIT_URL=`git config --get remote.origin.url` &&
-  GIT_BRANCH=`git rev-parse --abbrev-ref HEAD` &&
+  echo "-------------------$GIT_BRANCH" &&
 
   #Switch between issue search metod
   if [ "$BUILD_ENV" = "dev" ]
@@ -166,6 +166,8 @@ fi
   if [ -z "$JIRA_ISSUE" ]
   then
     echo -e "\n$NO_ISSUES"
+    exit_code="1"
+    resultFunction
   else
     echo -e "Found issues: \n$JIRA_ISSUE"
     curl_function
