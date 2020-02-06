@@ -55,13 +55,13 @@ generate_post_data()
       {"type":"text","text":" "},
       {"type":"text","text":"Commit author:","marks":[{"type":"strong"}]},
       {"type":"text","text":"  $GIT_COMMIT_AUTHOR "},
-      {"type":"inlineCard","attrs":{"url":"$COMMIT_URL"}}]}
+      {"type":"inlineCard","attrs":{"url":"$COMMIT_URL"}}]},
     {"type":"paragraph","content":[
       {"type":"emoji","attrs":{"shortName":":gear:","id":"2699","text":":gear:"}},
       {"type":"text","text":"  Deployed to "},
       {"type":"text","text":"$SERVICE_ENVIRONMENT","marks":[{"type":"strong"}]},
       {"type":"text","text":" environment: "},
-      {"type":"text","text":"$SERVICE_URL","marks":[{"type":"link","attrs":{"href":"$SERVICE_URL"}}]}]}}
+      {"type":"text","text":"$SERVICE_URL","marks":[{"type":"link","attrs":{"href":"$SERVICE_URL"}}]}]}]}}
 EOF
 }
 
@@ -100,9 +100,10 @@ curl_function()
       echo -e "HTTP response status code: $http_code"
       echo -e "Server returned:"
       cat response.txt | jq
-      rm response.txt
       exit_code="1"
     fi
+
+    rm response.txt
 
   done
 }
