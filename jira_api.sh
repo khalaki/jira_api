@@ -9,9 +9,11 @@ helpFunction()
   echo -e "| \$JIRA_CRED            - JIRA cred           |  user@mail.xyz:token              |  $JIRA_CRED"
   echo -e "| \$JIRA_REG             - JIRA issue regexp   |  PRO-\d*                          |  $JIRA_REG"
   echo -e "| \$BUILD_RESULT         - Build result        |  must be SUCCESS if not fails     |  $BUILD_RESULT"
-  echo -e "| \$BUILD_DISPLAY_NAME   - Build name          |  any                              |  $BUILD_DISPLAY_NAME"
+  echo -e "| \$BUILD_TAG            - Job name with tag   |  any                              |  $BUILD_TAG"
   echo -e "| \$BUILD_URL            - Build URL           |  https://jenkins.site.net         |  $BUILD_URL"
-  echo -e "| \$GIT_PREVIOUS_COMMIT  - Last builded commit |  any                              |  $GIT_PREVIOUS_COMMIT"  
+  echo -e "| \$GIT_PREVIOUS_COMMIT  - Last builded commit |  any                              |  $GIT_PREVIOUS_COMMIT"
+  echo -e "| \$SERVICE_ENVIRONMENT  - Service environment |  development/staging/production   |  $SERVICE_ENVIRONMENT"   
+  echo -e "| \$SERVICE_URL          - Service URL         |  https://some.service.net         |  $SERVICE_URL" 
   echo "-------------------------------------------------------------------------------------------------------------------"
   echo -e "\n| Require parameters:                                                             | Current values:"
   echo "-------------------------------------------------------------------------------------------------------------------"
@@ -42,17 +44,24 @@ generate_post_data()
   cat <<EOF
     {"body":{"version":1,"type":"doc","content":[
     {"type":"paragraph","content":[
-    {"type":"emoji","attrs":{"shortName":"$RESULT_EMOJI","id":"$RESULT_EMOJI_ID","text":"$RESULT_EMOJI_TEXT"}},
-    {"type":"text","text":" $RESULT_MESSAGE:","marks":[{"type":"strong"}]},
-    {"type":"text","text":" Jenkins build "},
-    {"type":"text","text":"$BUILD_DISPLAY_NAME","marks":[{"type":"em"}]},
-    {"type":"text","text":"  "},
-    {"type":"text","text":"link","marks":[{"type":"link","attrs":{"href":"$BUILD_URL"}}]}]},
+      {"type":"emoji","attrs":{"shortName":"$RESULT_EMOJI","id":"$RESULT_EMOJI_ID","text":"$RESULT_EMOJI_TEXT"}},
+      {"type":"text","text":" $RESULT_MESSAGE:","marks":[{"type":"strong"}]},
+      {"type":"text","text":" Jenkins build "},
+      {"type":"text","text":"$BUILD_TAG","marks":[{"type":"em"}]},
+      {"type":"text","text":"  "},
+      {"type":"text","text":"link","marks":[{"type":"link","attrs":{"href":"$BUILD_URL"}}]}]},
     {"type":"paragraph","content":[
-    {"type":"emoji","attrs":{"shortName":":info:","id":"atlassian-info","text":":info:"}},
-    {"type":"text","text":" "},
-    {"type":"text","text":"Commit author:","marks":[{"type":"strong"}]},
-    {"type":"text","text":"  $GIT_COMMIT_AUTHOR "},{"type":"inlineCard","attrs":{"url":"$COMMIT_URL"}}]}]}}
+      {"type":"emoji","attrs":{"shortName":":info:","id":"atlassian-info","text":":info:"}},
+      {"type":"text","text":" "},
+      {"type":"text","text":"Commit author:","marks":[{"type":"strong"}]},
+      {"type":"text","text":"  $GIT_COMMIT_AUTHOR "},
+      {"type":"inlineCard","attrs":{"url":"$COMMIT_URL"}}]}
+    {"type":"paragraph","content":[
+      {"type":"emoji","attrs":{"shortName":":gear:","id":"2699","text":":gear:"}},
+      {"type":"text","text":"  Deployed to "},
+      {"type":"text","text":"$SERVICE_ENVIRONMENT","marks":[{"type":"strong"}]},
+      {"type":"text","text":" environment: "},
+      {"type":"text","text":"$SERVICE_URL","marks":[{"type":"link","attrs":{"href":"$SERVICE_URL"}}]}]}}
 EOF
 }
 
@@ -115,8 +124,9 @@ do
 done
 
 # Print helpFunction in case parameters are empty
-if [ -z "$JIRA_URL" ] || [ -z "$JIRA_CRED" ] || [ -z "$JIRA_REG" ] || [ -z "$BUILD_RESULT" ] || [ -z "$BUILD_DISPLAY_NAME" ] \
-  || [ -z "$GIT_PREVIOUS_COMMIT" ] || [ -z "$BUILD_ENV" ] || [ -z "$BUILD_URL" ]
+if [ -z "$JIRA_URL" ] || [ -z "$JIRA_CRED" ] || [ -z "$JIRA_REG" ] || [ -z "$BUILD_RESULT" ] || [ -z "$BUILD_TAG" ] \
+  || [ -z "$GIT_PREVIOUS_COMMIT" ] || [ -z "$BUILD_ENV" ] || [ -z "$BUILD_URL" ] || [ -z "$SERVICE_URL" ] \
+  || [ -z "$SERVICE_ENVIRONMENT" ]
 then
    echo -e "\nSome or all of the parameters are empty!";
    helpFunction
