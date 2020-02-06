@@ -140,7 +140,6 @@ fi
 { # try
   #Get git parameters
   GIT_URL=`git config --get remote.origin.url` &&
-  echo "-------------------$GIT_BRANCH" &&
 
   #Switch between issue search metod
   if [ "$BUILD_ENV" = "dev" ]
