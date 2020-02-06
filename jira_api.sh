@@ -1,9 +1,6 @@
 #!/bin/bash
 
-echo -e "\n------------------JIRA API-------------------\n"
-
-VER_FILE="version.txt"
-
+#-----------------------------------------------FUNCTION PART------------------------------------------------------------------
 helpFunction()
 {
   echo -e "\n| Require variables:                                                              | Current values:"
@@ -13,6 +10,7 @@ helpFunction()
   echo -e "| \$JIRA_REG             - JIRA issue regexp   |  PRO-\d*                          |  $JIRA_REG"
   echo -e "| \$BUILD_RESULT         - Build result        |  must be SUCCESS if not fails     |  $BUILD_RESULT"
   echo -e "| \$BUILD_DISPLAY_NAME   - Build name          |  any                              |  $BUILD_DISPLAY_NAME"
+  echo -e "| \$BUILD_URL            - Build URL           |  https://jenkins.site.net         |  $BUILD_URL"
   echo -e "| \$GIT_PREVIOUS_COMMIT  - Last builded commit |  any                              |  $GIT_PREVIOUS_COMMIT"  
   echo "-------------------------------------------------------------------------------------------------------------------"
   echo -e "\n| Require parameters:                                                             | Current values:"
@@ -58,45 +56,55 @@ generate_post_data()
 EOF
 }
 
+#Parse each issue block
 curl_function()
 {
   for issue in $JIRA_ISSUE
   do
-    issue_id=`echo $issue | grep -o -P "$JIRA_REG"`
+    #Cut ISSUE ID from JIRA_ISSUE block
+    issue_id=`echo $issue | sed "s/_/ /g" | grep -o -P "(?<=[\h]{2})${JIRA_REG}(?=:)"`
 
-    if [[ ${issue_id} =~ ${JIRA_REG} ]]
+    #Complete comment message by commit author and url
+    GIT_COMMIT_AUTHOR=`echo $issue | sed "s/_/ /g" | grep -o -P "(?<=\|\#\|)[\d\w\h]+(?='$)"`
+    
+    GIT_COMMIT=`echo $issue | grep -o -P "[\da-z]{40}"`
+    COMMIT_URL="https://github.com/`echo "${GIT_URL:15: -4}"`/commit/`echo $GIT_COMMIT`"
+
+    #Run http request to jira ip for write comments and generate_post_data function
+    echo -e "\nWrite comment to JIRA issue ID: $issue_id"
+    echo "--------------------------------------"
+    http_code="$(
+      curl -s -o response.txt -w "%{http_code}" --request POST \
+        --url "$JIRA_URL/rest/api/3/issue/$issue_id/comment" \
+        --user "$JIRA_CRED" \
+        --header 'Accept: application/json' \
+        --header 'Content-Type: application/json' \
+        --data "$(generate_post_data)"
+    )"
+
+    #Handle return codes
+    if [ "$http_code" = "201" ]
     then
-      GIT_COMMIT_AUTHOR=`echo $issue | grep -o -P "^[\s\dA-z]*"`
-      GIT_COMMIT=`echo $issue | grep -o -P "[\da-z]{40}"`
-      COMMIT_URL="https://github.com/`echo "${GIT_URL:15: -4}"`/commit/`echo $GIT_COMMIT`"
-
-      echo -e "\nWrite comment to JIRA issue ID: $issue_id"
-      echo "--------------------------------------"
-      http_code="$(
-        curl -s -o response.txt -w "%{http_code}" --request POST \
-          --url "$JIRA_URL/rest/api/3/issue/$issue_id/comment" \
-          --user "$JIRA_CRED" \
-          --header 'Accept: application/json' \
-          --header 'Content-Type: application/json' \
-          --data "$(generate_post_data)"
-      )"
-
-      if [ "$http_code" = "201" ]
-      then
-        echo -e "SUCCESS"
-      else
-        echo -e "JIRA API RETURNED ERROR CODE!"
-        echo -e "HTTP response status code: $http_code"
-        echo -e "Server returned:"
-        cat response.txt | jq
-        exit_code="1"
-      fi
+      echo -e "SUCCESS"
+    else
+      echo -e "JIRA API RETURNED ERROR CODE!"
+      echo -e "HTTP response status code: $http_code"
+      echo -e "Server returned:"
+      cat response.txt | jq
+      rm response.txt
+      exit_code="1"
     fi
-  done
 
-  rm response.txt
+  done
 }
 
+#-----------------------------------------------SCRIPT PART------------------------------------------------------------------
+
+echo -e "\n------------------JIRA API-------------------\n"
+
+VER_FILE="version.txt"
+
+#Get options from console
 while getopts "e:v:" opt
 do
    case "$opt" in
@@ -108,12 +116,13 @@ done
 
 # Print helpFunction in case parameters are empty
 if [ -z "$JIRA_URL" ] || [ -z "$JIRA_CRED" ] || [ -z "$JIRA_REG" ] || [ -z "$BUILD_RESULT" ] || [ -z "$BUILD_DISPLAY_NAME" ] \
-  || [ -z "$GIT_PREVIOUS_COMMIT" ] || [ -z "$BUILD_ENV" ]
+  || [ -z "$GIT_PREVIOUS_COMMIT" ] || [ -z "$BUILD_ENV" ] || [ -z "$BUILD_URL" ]
 then
    echo -e "\nSome or all of the parameters are empty!";
    helpFunction
 fi
 
+#Completing FAILED\SUCCES message
 if [ "$BUILD_RESULT" = "SUCCESS" ]
 then
   RESULT_MESSAGE=SUCCESS
@@ -127,15 +136,20 @@ else
   RESULT_EMOJI_ID=atlassian-warning
 fi
 
+# try\catch block for getting issues
 { # try
+  #Get git parameters
   GIT_URL=`git config --get remote.origin.url` &&
   GIT_BRANCH=`git rev-parse --abbrev-ref HEAD` &&
 
+  #Switch between issue search metod
   if [ "$BUILD_ENV" = "dev" ]
   then
-    JIRA_ISSUE=`git log $GIT_PREVIOUS_COMMIT..$GIT_BRANCH --pretty=format:"%an|-|%H|-|%s" | grep -o -P "^[\S]*-.$JIRA_REG"`
+    #Get issuses blocks from a git log
+    JIRA_ISSUE=`git log $GIT_PREVIOUS_COMMIT..$GIT_BRANCH --pretty=format:"'%H  %s  |#|%an'" | grep -P "(?<=[\h]{2})$JIRA_REG(?=:)" | sed "s/ /_/g"`
     NO_ISSUES="No issues found from $GIT_PREVIOUS_COMMIT to last commit"
   else
+    #Try to read file with version
     { # try
       VERSION=`cat $VER_FILE`
     } || { # catch
@@ -143,10 +157,12 @@ fi
       exit_code="1"
       resultFunction
     }
-    JIRA_ISSUE=`git log $VERSION..$GIT_BRANCH --pretty=format:"%an|-|%H|-|%s" | grep -o -P "^[\S]*-.$JIRA_REG"`
+    #Get issuses blocks from a git log
+    JIRA_ISSUE=`git log $VERSION..$GIT_BRANCH --pretty=format:"'%H  %s  |#|%an'" | grep -P "(?<=[\h]{2})$JIRA_REG(?=:)" | sed "s/ /_/g"`
     NO_ISSUES="No issues found from tag $VERSION to last commit"
   fi &&
 
+  #Print founded issues and return message if issues not found
   if [ -z "$JIRA_ISSUE" ]
   then
     echo -e "\n$NO_ISSUES"
@@ -155,9 +171,10 @@ fi
     curl_function
   fi
 } || { # catch
-  echo -e "\ngit repository not found"
+  #Return error if something wrong in try\catch block for getting issues
+  echo -e "\nERROR WITH GETTING ISSUES"
   exit_code="1"
   resultFunction
 }
-
+#Finished script by result function
 resultFunction
