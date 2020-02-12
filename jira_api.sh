@@ -11,7 +11,8 @@ helpFunction()
   echo -e "| \$JIRA_CRED            - JIRA cred           |  user@mail.xyz:token              |  $JIRA_CRED"
   echo -e "| \$JIRA_REG             - JIRA issue regexp   |  PRO-\d*                          |  $JIRA_REG"
   echo -e "| \$BUILD_RESULT         - Build result        |  must be SUCCESS if not fails     |  $BUILD_RESULT"
-  echo -e "| \$BUILD_TAG            - Job name with tag   |  any                              |  $BUILD_TAG"
+  echo -e "| \$JOB_NAME             - Job name            |  any                              |  $JOB_NAME"
+  echo -e "| \$BUILD_DISPLAY_NAME   - Build display name  |  any                              |  $BUILD_DISPLAY_NAME"
   echo -e "| \$BUILD_URL            - Build URL           |  https://jenkins.site.net         |  $BUILD_URL"
   echo -e "| \$GIT_PREVIOUS_COMMIT  - Last builded commit |  any                              |  $GIT_PREVIOUS_COMMIT"
   echo -e "| \$GIT_BRANCH           - Current git branch  |  any                              |  $GIT_BRANCH"
@@ -50,7 +51,7 @@ generate_post_data()
       {"type":"emoji","attrs":{"shortName":"$RESULT_EMOJI","id":"$RESULT_EMOJI_ID","text":"$RESULT_EMOJI_TEXT"}},
       {"type":"text","text":" $RESULT_MESSAGE:","marks":[{"type":"strong"}]},
       {"type":"text","text":" Jenkins build - "},
-      {"type":"text","text":"$BUILD_TAG","marks":[{"type":"em"},{"type":"strong"}]},
+      {"type":"text","text":"$JOB_NAME | $BUILD_DISPLAY_NAME","marks":[{"type":"strong"}]},
       {"type":"text","text":"  "},
       {"type":"text","text":"link","marks":[{"type":"link","attrs":{"href":"$BUILD_URL"}}]}]},
     {"type":"paragraph","content":[
@@ -128,9 +129,9 @@ do
 done
 
 # Print helpFunction in case parameters are empty
-if [ -z "$JIRA_URL" ] || [ -z "$JIRA_CRED" ] || [ -z "$JIRA_REG" ] || [ -z "$BUILD_RESULT" ] || [ -z "$BUILD_TAG" ] \
+if [ -z "$JIRA_URL" ] || [ -z "$JIRA_CRED" ] || [ -z "$JIRA_REG" ] || [ -z "$BUILD_RESULT" ] || [ -z "$JOB_NAME" ] \
   || [ -z "$GIT_PREVIOUS_COMMIT" ] || [ -z "$BUILD_ENV" ] || [ -z "$BUILD_URL" ] || [ -z "$SERVICE_URL" ] \
-  || [ -z "$SERVICE_ENVIRONMENT" ] || [ -z "$GIT_BRANCH" ]
+  || [ -z "$SERVICE_ENVIRONMENT" ] || [ -z "$GIT_BRANCH" ] || [ -z "$BUILD_DISPLAY_NAME" ]
 then
    echo -e "\nSome or all of the parameters are empty!";
    helpFunction
