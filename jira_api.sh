@@ -50,7 +50,7 @@ generate_post_data()
       {"type":"emoji","attrs":{"shortName":"$RESULT_EMOJI","id":"$RESULT_EMOJI_ID","text":"$RESULT_EMOJI_TEXT"}},
       {"type":"text","text":" $RESULT_MESSAGE:","marks":[{"type":"strong"}]},
       {"type":"text","text":" Jenkins build - "},
-      {"type":"text","text":"$BUILD_TAG","marks":[{"type":"em"}]},
+      {"type":"text","text":"$BUILD_TAG","marks":[{"type":"em"},{"type":"strong"}]},
       {"type":"text","text":"  "},
       {"type":"text","text":"link","marks":[{"type":"link","attrs":{"href":"$BUILD_URL"}}]}]},
     {"type":"paragraph","content":[
