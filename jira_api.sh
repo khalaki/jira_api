@@ -1,5 +1,7 @@
 #!/bin/bash
 
+# No issues found from null to last commit
+
 #-----------------------------------------------FUNCTION PART------------------------------------------------------------------
 helpFunction()
 {
@@ -12,6 +14,7 @@ helpFunction()
   echo -e "| \$BUILD_TAG            - Job name with tag   |  any                              |  $BUILD_TAG"
   echo -e "| \$BUILD_URL            - Build URL           |  https://jenkins.site.net         |  $BUILD_URL"
   echo -e "| \$GIT_PREVIOUS_COMMIT  - Last builded commit |  any                              |  $GIT_PREVIOUS_COMMIT"
+  echo -e "| \$GIT_BRANCH           - Current git branch  |  any                              |  $GIT_BRANCH"
   echo -e "| \$SERVICE_ENVIRONMENT  - Service environment |  development/staging/production   |  $SERVICE_ENVIRONMENT"   
   echo -e "| \$SERVICE_URL          - Service URL         |  https://some.service.net         |  $SERVICE_URL" 
   echo "-------------------------------------------------------------------------------------------------------------------"
@@ -46,7 +49,7 @@ generate_post_data()
     {"type":"paragraph","content":[
       {"type":"emoji","attrs":{"shortName":"$RESULT_EMOJI","id":"$RESULT_EMOJI_ID","text":"$RESULT_EMOJI_TEXT"}},
       {"type":"text","text":" $RESULT_MESSAGE:","marks":[{"type":"strong"}]},
-      {"type":"text","text":" Jenkins build "},
+      {"type":"text","text":" Jenkins build - "},
       {"type":"text","text":"$BUILD_TAG","marks":[{"type":"em"}]},
       {"type":"text","text":"  "},
       {"type":"text","text":"link","marks":[{"type":"link","attrs":{"href":"$BUILD_URL"}}]}]},
@@ -99,7 +102,7 @@ curl_function()
       echo -e "JIRA API RETURNED ERROR CODE!"
       echo -e "HTTP response status code: $http_code"
       echo -e "Server returned:"
-      cat response.txt | jq
+      cat response.txt
       exit_code="1"
     fi
 
@@ -127,7 +130,7 @@ done
 # Print helpFunction in case parameters are empty
 if [ -z "$JIRA_URL" ] || [ -z "$JIRA_CRED" ] || [ -z "$JIRA_REG" ] || [ -z "$BUILD_RESULT" ] || [ -z "$BUILD_TAG" ] \
   || [ -z "$GIT_PREVIOUS_COMMIT" ] || [ -z "$BUILD_ENV" ] || [ -z "$BUILD_URL" ] || [ -z "$SERVICE_URL" ] \
-  || [ -z "$SERVICE_ENVIRONMENT" ]
+  || [ -z "$SERVICE_ENVIRONMENT" ] || [ -z "$GIT_BRANCH" ]
 then
    echo -e "\nSome or all of the parameters are empty!";
    helpFunction
@@ -151,6 +154,12 @@ fi
 { # try
   #Get git parameters
   GIT_URL=`git config --get remote.origin.url` &&
+
+  #If it's first build, script will be use the last commit in git
+  if [ "$GIT_PREVIOUS_COMMIT" = "null" ]
+  then
+     GIT_PREVIOUS_COMMIT=`git log -1 --skip 1 --pretty=format:"%H"`
+  fi &&
 
   #Switch between issue search metod
   if [ "$BUILD_ENV" = "dev" ]
