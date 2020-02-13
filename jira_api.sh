@@ -152,7 +152,7 @@ else
 fi
 
 #Completing service URL message
-fi [ -z "$SERVICE_URL_DATA" ]
+if [ -z "$SERVICE_URL_DATA" ]
 then
   echo -e "\nSkip writing service URL..."
 else
