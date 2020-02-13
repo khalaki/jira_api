@@ -64,8 +64,8 @@ generate_post_data()
       {"type":"emoji","attrs":{"shortName":":gear:","id":"2699","text":":gear:"}},
       {"type":"text","text":"  Deployed to "},
       {"type":"text","text":"$SERVICE_ENVIRONMENT","marks":[{"type":"strong"}]},
-      {"type":"text","text":" environment: "},
-      {"type":"text","text":"$SERVICE_URL","marks":[{"type":"link","attrs":{"href":"$SERVICE_URL"}}]}]}]}}
+      {"type":"text","text":" environment"},
+      $SERVICE_URL_DATA]}]}}
 EOF
 }
 
@@ -149,6 +149,14 @@ else
   RESULT_EMOJI=:warning:
   RESULT_EMOJI_TEXT=:warning:
   RESULT_EMOJI_ID=atlassian-warning
+fi
+
+#Completing service URL message
+fi [ -z "$SERVICE_URL_DATA" ]
+then
+  echo -e "\nSkip writing service URL..."
+else
+  SERVICE_URL_DATA="{"type":"text","text":": $SERVICE_URL","marks":[{"type":"link","attrs":{"href":"$SERVICE_URL"}}]}"
 fi
 
 # try\catch block for getting issues
