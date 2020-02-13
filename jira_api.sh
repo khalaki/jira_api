@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# No issues found from null to last commit
+# if fail, get commti from last successful commti
 
 #-----------------------------------------------FUNCTION PART------------------------------------------------------------------
 helpFunction()
@@ -17,7 +17,6 @@ helpFunction()
   echo -e "| \$GIT_PREVIOUS_COMMIT  - Last builded commit |  any                              |  $GIT_PREVIOUS_COMMIT"
   echo -e "| \$GIT_BRANCH           - Current git branch  |  any                              |  $GIT_BRANCH"
   echo -e "| \$SERVICE_ENVIRONMENT  - Service environment |  development/staging/production   |  $SERVICE_ENVIRONMENT"   
-  echo -e "| \$SERVICE_URL          - Service URL         |  https://some.service.net         |  $SERVICE_URL" 
   echo "-------------------------------------------------------------------------------------------------------------------"
   echo -e "\n| Require parameters:                                                             | Current values:"
   echo "-------------------------------------------------------------------------------------------------------------------"
@@ -26,6 +25,7 @@ helpFunction()
   echo -e "\n| Options:                                                                        | Current values:"
   echo "-------------------------------------------------------------------------------------------------------------------"
   echo -e "| -v \"some_file_name\"   - Version file        |  by default \"version.txt\"         |  $VER_FILE"
+  echo -e "| \$SERVICE_URL          - Service URL         |  https://some.service.net         |  $SERVICE_URL"   
   echo "-------------------------------------------------------------------------------------------------------------------"
   exit_code="1"
   resultFunction
@@ -59,12 +59,8 @@ generate_post_data()
       {"type":"text","text":" "},
       {"type":"text","text":"Commit author:","marks":[{"type":"strong"}]},
       {"type":"text","text":"  $GIT_COMMIT_AUTHOR "},
-      {"type":"inlineCard","attrs":{"url":"$COMMIT_URL"}}]},
-    {"type":"paragraph","content":[
-      {"type":"emoji","attrs":{"shortName":":gear:","id":"2699","text":":gear:"}},
-      {"type":"text","text":"  Deployed to "},
-      {"type":"text","text":"$SERVICE_ENVIRONMENT","marks":[{"type":"strong"}]},
-      {"type":"text","text":" environment"},
+      {"type":"inlineCard","attrs":{"url":"$COMMIT_URL"}}
+      $DEPLOY_MESSAGE
       $SERVICE_URL_DATA]}]}}
 EOF
 }
@@ -130,7 +126,7 @@ done
 
 # Print helpFunction in case parameters are empty
 if [ -z "$JIRA_URL" ] || [ -z "$JIRA_CRED" ] || [ -z "$JIRA_REG" ] || [ -z "$BUILD_RESULT" ] || [ -z "$JOB_NAME" ] \
-  || [ -z "$GIT_PREVIOUS_COMMIT" ] || [ -z "$BUILD_ENV" ] || [ -z "$BUILD_URL" ] || [ -z "$SERVICE_URL" ] \
+  || [ -z "$GIT_PREVIOUS_COMMIT" ] || [ -z "$BUILD_ENV" ] || [ -z "$BUILD_URL" ] \
   || [ -z "$SERVICE_ENVIRONMENT" ] || [ -z "$GIT_BRANCH" ] || [ -z "$BUILD_DISPLAY_NAME" ]
 then
    echo -e "\nSome or all of the parameters are empty!";
@@ -144,19 +140,27 @@ then
   RESULT_EMOJI=:white_check_mark:
   RESULT_EMOJI_TEXT=:white_check_mark:
   RESULT_EMOJI_ID=2705
+
+  DEPLOY_MESSAGE="]},
+    {\"type\":\"paragraph\",\"content\":[
+      {\"type\":\"emoji\",\"attrs\":{\"shortName\":\":gear:\",\"id\":\"2699\",\"text\":\":gear:\"}},
+      {\"type\":\"text\",\"text\":\"  Deployed to \"},
+      {\"type\":\"text\",\"text\":\"$SERVICE_ENVIRONMENT\",\"marks\":[{\"type\":\"strong\"}]},
+      {\"type\":\"text\",\"text\":\" environment\"}"
+
+  #Completing service URL message
+  if [ -z "$SERVICE_URL" ]
+  then
+    echo -e "Skip writing service URL...\n"
+  else
+    SERVICE_URL_DATA=",{\"type\":\"text\",\"text\":\": $SERVICE_URL\",\"marks\":[{\"type\":\"link\",\"attrs\":{\"href\":\"$SERVICE_URL\"}}]}"
+  fi
+
 else
   RESULT_MESSAGE=FAILED
   RESULT_EMOJI=:warning:
   RESULT_EMOJI_TEXT=:warning:
   RESULT_EMOJI_ID=atlassian-warning
-fi
-
-#Completing service URL message
-if [ -z "$SERVICE_URL_DATA" ]
-then
-  echo -e "\nSkip writing service URL..."
-else
-  SERVICE_URL_DATA="{"type":"text","text":": $SERVICE_URL","marks":[{"type":"link","attrs":{"href":"$SERVICE_URL"}}]}"
 fi
 
 # try\catch block for getting issues
