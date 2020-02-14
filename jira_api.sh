@@ -1,34 +1,31 @@
 #!/bin/bash
 
-# if fail, get issues from last successful commit
-# GIT_PREVIOUS_SUCCESSFUL_COMMIT
-# FIXED_BUILD
-
 #-----------------------------------------------FUNCTION PART------------------------------------------------------------------
 helpFunction()
 {
-  echo -e "\n| Require variables:                                                              | Current values:"
-  echo "-------------------------------------------------------------------------------------------------------------------"
-  echo -e "| \$JIRA_URL             - JIRA site URL       |  https://site.atlassian.net       |  $JIRA_URL"
-  echo -e "| \$JIRA_CRED            - JIRA cred           |  user@mail.xyz:token              |  $JIRA_CRED"
-  echo -e "| \$JIRA_REG             - JIRA issue regexp   |  PRO-\d*                          |  $JIRA_REG"
-  echo -e "| \$BUILD_RESULT         - Build result        |  must be SUCCESS if not fails     |  $BUILD_RESULT"
-  echo -e "| \$JOB_NAME             - Job name            |  any                              |  $JOB_NAME"
-  echo -e "| \$BUILD_DISPLAY_NAME   - Build display name  |  any                              |  $BUILD_DISPLAY_NAME"
-  echo -e "| \$BUILD_URL            - Build URL           |  https://jenkins.site.net         |  $BUILD_URL"
-  echo -e "| \$GIT_PREVIOUS_COMMIT  - Last builded commit |  any                              |  $GIT_PREVIOUS_COMMIT"
-  echo -e "| \$GIT_BRANCH           - Current git branch  |  any                              |  $GIT_BRANCH"
-  echo -e "| \$SERVICE_ENVIRONMENT  - Service environment |  development/staging/production   |  $SERVICE_ENVIRONMENT"   
-  echo "-------------------------------------------------------------------------------------------------------------------"
-  echo -e "\n| Require parameters:                                                             | Current values:"
-  echo "-------------------------------------------------------------------------------------------------------------------"
-  echo -e "| -e some_env           - Build environment   |  dev/stage/prod                   |  $BUILD_ENV"
-  echo "-------------------------------------------------------------------------------------------------------------------"
-  echo -e "\n| Options:                                                                        | Current values:"
-  echo "-------------------------------------------------------------------------------------------------------------------"
-  echo -e "| -v \"some_file_name\"   - Version file        |  by default \"version.txt\"         |  $VER_FILE"
-  echo -e "| \$SERVICE_URL          - Service URL         |  https://some.service.net         |  $SERVICE_URL"   
-  echo "-------------------------------------------------------------------------------------------------------------------"
+  echo -e "\n Require variables:                                                 Description:                       | Current values:"
+  echo "---------------------------------------------------------------------------------------------------------------------------------------------------"
+  echo -e "| \$JIRA_URL                       - JIRA site URL                  |  https://site.atlassian.net       |  $JIRA_URL"
+  echo -e "| \$JIRA_CRED                      - JIRA cred                      |  user@mail.xyz:token              |  $JIRA_CRED"
+  echo -e "| \$JIRA_REG                       - JIRA issue regexp              |  PRO-\d*                          |  $JIRA_REG"
+  echo -e "| \$BUILD_RESULT                   - Build result                   |  must be SUCCESS if not fails     |  $BUILD_RESULT"
+  echo -e "| \$JOB_NAME                       - Job name                       |  any                              |  $JOB_NAME"
+  echo -e "| \$BUILD_DISPLAY_NAME             - Build display name             |  any                              |  $BUILD_DISPLAY_NAME"
+  echo -e "| \$BUILD_URL                      - Build URL                      |  https://jenkins.site.net         |  $BUILD_URL"
+  echo -e "| \$GIT_PREVIOUS_COMMIT            - Last builded commit            |  any                              |  $GIT_PREVIOUS_COMMIT"
+  echo -e "| \$GIT_PREVIOUS_SUCCESSFUL_COMMIT - Last successful builded commit |  any                              |  $GIT_PREVIOUS_COMMIT"
+  echo -e "| \$GIT_BRANCH                     - Current git branch             |  any                              |  $GIT_BRANCH"
+  echo -e "| \$SERVICE_ENVIRONMENT            - Service environment            |  development/staging/production   |  $SERVICE_ENVIRONMENT"
+  echo "-----------------------------------------------------------------------------------------------------------------------------------------------------"
+  echo -e "\n Require parameters:                                                Description:                       | Current values:"
+  echo "-----------------------------------------------------------------------------------------------------------------------------------------------------"
+  echo -e "| -e some_env                      - Build environment             |  dev/stage/prod                   |  $BUILD_ENV"
+  echo "-----------------------------------------------------------------------------------------------------------------------------------------------------"
+  echo -e "\n Options:                                                           Description:                       | Current values:"
+  echo "-----------------------------------------------------------------------------------------------------------------------------------------------------"
+  echo -e "| -v \"some_file_name\"            - Version file                    |  by default \"version.txt\"         |  $VER_FILE"
+  echo -e "| \$SERVICE_URL                    - Service URL                    |  https://some.service.net         |  $SERVICE_URL"   
+  echo "-----------------------------------------------------------------------------------------------------------------------------------------------------"
   exit_code="1"
   resultFunction
 }
