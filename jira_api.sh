@@ -1,6 +1,8 @@
 #!/bin/bash
 
-# if fail, get commti from last successful commti
+# if fail, get issues from last successful commit
+# GIT_PREVIOUS_SUCCESSFUL_COMMIT
+# FIXED_BUILD
 
 #-----------------------------------------------FUNCTION PART------------------------------------------------------------------
 helpFunction()
@@ -173,6 +175,12 @@ fi
   then
      GIT_PREVIOUS_COMMIT=`git log -1 --skip 1 --pretty=format:"%H"`
   fi &&
+
+  #If it's fixed build, script will be use last successful builded commit
+  if [ "$FIXED_BUILD" = "1" ]
+  then
+    GIT_PREVIOUS_COMMIT=$GIT_PREVIOUS_SUCCESSFUL_COMMIT
+  fi
 
   #Switch between issue search metod
   if [ "$BUILD_ENV" = "dev" ]
