@@ -165,22 +165,23 @@ else
   RESULT_EMOJI_ID=atlassian-warning
 fi
 
+#If it's first build, script will be use the last commit in git
+if [ "$GIT_PREVIOUS_COMMIT" = "null" ]
+then
+   GIT_PREVIOUS_COMMIT=`git log -1 --skip 1 --pretty=format:"%H"`
+fi &&
+
+#If it's fixed build, script will be use last successful builded commit
+if [ "$FIXED_BUILD" = "1" ]
+then
+  GIT_PREVIOUS_COMMIT=$GIT_PREVIOUS_SUCCESSFUL_COMMIT
+  RESULT_MESSAGE=FIXED
+fi
+
 # try\catch block for getting issues
 { # try
   #Get git parameters
   GIT_URL=`git config --get remote.origin.url` &&
-
-  #If it's first build, script will be use the last commit in git
-  if [ "$GIT_PREVIOUS_COMMIT" = "null" ]
-  then
-     GIT_PREVIOUS_COMMIT=`git log -1 --skip 1 --pretty=format:"%H"`
-  fi &&
-
-  #If it's fixed build, script will be use last successful builded commit
-  if [ "$FIXED_BUILD" = "1" ]
-  then
-    GIT_PREVIOUS_COMMIT=$GIT_PREVIOUS_SUCCESSFUL_COMMIT
-  fi
 
   #Switch between issue search metod
   if [ "$BUILD_ENV" = "dev" ]
