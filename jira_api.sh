@@ -87,7 +87,8 @@ get_issues()
   { #try
     if [ "$USE_GITLOG_LAST_COMMIT" = "true" ]
     then
-      echo -e "Start parsing issues from last git commit\n"
+      GITLOG_COMMIT=`git log -1 --pretty=format:"%H"`
+      echo -e "\nStart parsing issues by commit $GITLOG_COMMIT in $GIT_BRANCH\n"
       JIRA_ISSUE=`git log -1 --pretty=format:"'%H  %s  |#|%an'" | grep -P "(?<=[\h]{2})$JIRA_REG(?=:)" | sed "s/ /_/g"`
     else
       echo -e "\nStart parsing issues from $SEARCH_MODE_SELECT $GITLOG_FROM to $GIT_BRANCH branch last commit\n"
@@ -98,6 +99,17 @@ get_issues()
     exit_code="1"
     resultFunction
   }
+
+  
+  #PRINT FOUNDED ISSUES OR RETURN MESSAGE IF ISSUES NOT FOUND
+  if [ -z "$JIRA_ISSUE" ]
+  then
+    echo -e "\nIssues not found!"
+    exit_code="1"
+    resultFunction
+  else
+    echo -e "Found issues: \n$JIRA_ISSUE"
+  fi
 }
 
 generate_static_post_data()
@@ -252,17 +264,8 @@ fi
 
 get_issues #Get issues from commit messages
 
-#Print founded issues or return message if issues not found
-if [ -z "$JIRA_ISSUE" ]
-then
-  echo -e "\nNo issues found from $GITLOG_FROM to $GIT_BRANCH"
-  exit_code="1"
-  resultFunction
-else
-  echo -e "Found issues: \n$JIRA_ISSUE"
-  
-  generate_static_post_data #Generate static data for issue comment
-  curl_function #Post comments by JIRA API
-fi
+generate_static_post_data #Generate static data for issue comment
+
+curl_function #Post comments by JIRA API
 
 resultFunction #Finish script by result function
