@@ -1,48 +1,182 @@
 #!/bin/bash
 
+#v0.1 beta
+
+#1. one issue, two commits
+#2. transitions
+#3. other branches build
+
 #-----------------------------------------------FUNCTION PART------------------------------------------------------------------
 helpFunction()
 {
-  echo -e "\n Require variables:                                                 Description:                       | Current values:"
-  echo "---------------------------------------------------------------------------------------------------------------------------------------------------"
-  echo -e "| \$JIRA_URL                       - JIRA site URL                  |  https://site.atlassian.net       |  $JIRA_URL"
-  echo -e "| \$JIRA_CRED                      - JIRA cred                      |  user@mail.xyz:token              |  $JIRA_CRED"
-  echo -e "| \$JIRA_REG                       - JIRA issue regexp              |  PRO-\d*                          |  $JIRA_REG"
-  echo -e "| \$BUILD_RESULT                   - Build result                   |  must be SUCCESS if not fails     |  $BUILD_RESULT"
-  echo -e "| \$JOB_NAME                       - Job name                       |  any                              |  $JOB_NAME"
-  echo -e "| \$BUILD_DISPLAY_NAME             - Build display name             |  any                              |  $BUILD_DISPLAY_NAME"
-  echo -e "| \$BUILD_URL                      - Build URL                      |  https://jenkins.site.net         |  $BUILD_URL"
-  echo -e "| \$GIT_PREVIOUS_COMMIT            - Last builded commit            |  any                              |  $GIT_PREVIOUS_COMMIT"
-  echo -e "| \$GIT_PREVIOUS_SUCCESSFUL_COMMIT - Last successful builded commit |  any                              |  $GIT_PREVIOUS_COMMIT"
-  echo -e "| \$GIT_BRANCH                     - Current git branch             |  any                              |  $GIT_BRANCH"
-  echo -e "| \$SERVICE_ENVIRONMENT            - Service environment            |  development/staging/production   |  $SERVICE_ENVIRONMENT"
-  echo "-----------------------------------------------------------------------------------------------------------------------------------------------------"
-  echo -e "\n Require parameters:                                                Description:                       | Current values:"
-  echo "-----------------------------------------------------------------------------------------------------------------------------------------------------"
-  echo -e "| -e some_env                      - Build environment             |  dev/stage/prod                   |  $BUILD_ENV"
-  echo "-----------------------------------------------------------------------------------------------------------------------------------------------------"
-  echo -e "\n Options:                                                           Description:                       | Current values:"
-  echo "-----------------------------------------------------------------------------------------------------------------------------------------------------"
-  echo -e "| -v \"some_file_name\"            - Version file                    |  by default \"version.txt\"         |  $VER_FILE"
-  echo -e "| \$SERVICE_URL                    - Service URL                    |  https://some.service.net         |  $SERVICE_URL"   
-  echo "-----------------------------------------------------------------------------------------------------------------------------------------------------"
+  echo -e "\n Require variables:                                                 Description:                       Current values:"
+  echo "___________________________________________________________________________________________________________________________________________________"
+  echo -e " \$JIRA_URL                       - JIRA site URL                    https://site.atlassian.net         $JIRA_URL"
+  echo -e " \$JIRA_CRED                      - JIRA cred                        user@mail.xyz:token                $JIRA_CRED"
+  echo -e " \$JIRA_REG                       - JIRA issue regexp                PRO-\d*                            $JIRA_REG"
+  echo -e " \$BUILD_RESULT                   - Build result                     must be SUCCESS if not fails       $BUILD_RESULT"
+  echo -e " \$JOB_NAME                       - Job name                         any                                $JOB_NAME"
+  echo -e " \$BUILD_DISPLAY_NAME             - Build display name               any                                $BUILD_DISPLAY_NAME"
+  echo -e " \$BUILD_URL                      - Build URL                        https://jenkins.site.net           $BUILD_URL"
+  echo -e " \$GIT_BRANCH                     - Current git branch               any                                $GIT_BRANCH"
+  echo -e " \$SERVICE_ENVIRONMENT            - Service environment              development/staging/production     $SERVICE_ENVIRONMENT"
+
+  echo -e "\n\n Optional variables:"
+  echo "___________________________________________________________________________________________________________________________________________________"
+  echo -e " \$SERVICE_URL                    - Service URL                      https://some.service.net           $SERVICE_URL"   
+
+  echo -e "\n\n Optional parameters:"
+  echo "___________________________________________________________________________________________________________________________________________________"
+  echo -e " -m commit/tag                     - Issues search mode                 by default: commit                      $SEARCH_MODE_SELECT"
+  echo -e " -v \"some_file_name\"             - Version file                     by default: \"version.txt\"           $VER_FILE"
+
   exit_code="1"
   resultFunction
 }
 
-resultFunction()
+get_issues()
 {
-  if [ "$exit_code" = "1" ]
-  then
-    echo -e "\n--------JIRA API FINISHED WITH ERRORS----------\n"
-    exit 0
+  # TRY TO GET GIT PARAMETERS
+  { # try
+    GIT_URL=`git config --get remote.origin.url`
+    echo -e "...git found in current directory"
+  } || { # catch
+    echo -e "\nError with getting git parameters. Script cannot find git in directory tree or remote origin URL/n"
+    exit_code="1"
+    resultFunction
+  }
+
+
+  # SWITCH BETWEEN ISSUES SEARCH MODE
+  #Logic for commit search mode
+  if [ "$SEARCH_MODE_SELECT" = "commit" ]; then
+    echo -e "...selected \"by commit\" search mode"
+    #If GIT_PREVIOUS_COMMIT available, use it for search issues
+    if [[ "$GIT_PREVIOUS_COMMIT" =~ ^[0-9a-z]{40}$ ]]; then
+      echo -e "...variable \$GIT_PREVIOUS_COMMIT is available, if build not fixed it will be used for search"
+      GITLOG_FROM=$GIT_PREVIOUS_COMMIT
+      #If it's fixed build, in search script will be use last successful builded commit
+      if [[ "$FIXED_BUILD" = "1" ]]  && [[ "$GIT_PREVIOUS_SUCCESSFUL_COMMIT" =~ ^[0-9a-z]{40}$ ]] ;then
+        echo -e "...build is fixed. The \$GIT_PREVIOUS_SUCCESSFUL_COMMIT variable will be used for search"
+        GITLOG_FROM=$GIT_PREVIOUS_SUCCESSFUL_COMMIT
+      fi
+    #In any other causes script will be use the last commit in git
+    else
+      echo -e "...variable \$GIT_PREVIOUS_COMMIT is not available. Last git commit will be used for search"
+      USE_GITLOG_LAST_COMMIT="true"
+    fi
+  #Logic for tag search mode
+  elif [ "$SEARCH_MODE_SELECT" = "tag" ]; then
+      echo -e "...selected \"by tag\" search mode"
+      #Try to read file with version
+    { # try
+      GITLOG_FROM=`cat $VER_FILE`
+    } || { # catch
+      #Print error message if version file not tound
+      echo -e "\n$VER_FILE not found"
+      exit_code="1"
+      resultFunction
+    }
   else
-    echo -e "\n--------JIRA API FINISHED SUCCESSFUL----------\n"
-    exit 0
+    echo -e "\n\"-m $SEARCH_MODE_SELECT\" parameter is not allowed! See help"
+    helpFunction
+  fi
+
+
+  # GETTING COMMITS FROM GIT LOG
+  { #try
+    if [ "$USE_GITLOG_LAST_COMMIT" = "true" ]
+    then
+      echo -e "Start parsing issues from last git commit\n"
+      JIRA_ISSUE=`git log -1 --pretty=format:"'%H  %s  |#|%an'" | grep -P "(?<=[\h]{2})$JIRA_REG(?=:)" | sed "s/ /_/g"`
+    else
+      echo -e "\nStart parsing issues from $SEARCH_MODE_SELECT $GITLOG_FROM to $GIT_BRANCH branch last commit\n"
+      JIRA_ISSUE=`git log $GITLOG_FROM..$GIT_BRANCH --pretty=format:"'%H  %s  |#|%an'" | grep -P "(?<=[\h]{2})$JIRA_REG(?=:)" | sed "s/ /_/g"`
+    fi
+  } || { #catch
+    echo -e "/nError with gettng git commits"
+    exit_code="1"
+    resultFunction
+  }
+}
+
+generate_static_post_data()
+{
+  #Completing FAILED\SUCCES message
+  if [ "$BUILD_RESULT" = "SUCCESS" ]
+  then
+    RESULT_MESSAGE=SUCCESS
+    RESULT_EMOJI=:white_check_mark:
+    RESULT_EMOJI_TEXT=:white_check_mark:
+    RESULT_EMOJI_ID=2705
+
+    DEPLOY_MESSAGE="]},
+      {\"type\":\"paragraph\",\"content\":[
+        {\"type\":\"emoji\",\"attrs\":{\"shortName\":\":gear:\",\"id\":\"2699\",\"text\":\":gear:\"}},
+        {\"type\":\"text\",\"text\":\"  Deployed to \"},
+        {\"type\":\"text\",\"text\":\"$SERVICE_ENVIRONMENT\",\"marks\":[{\"type\":\"strong\"}]},
+        {\"type\":\"text\",\"text\":\" environment\"}"
+
+    #Completing service URL message
+    if [ -z "$SERVICE_URL" ]
+    then
+      echo -e "Skip writing service URL...\n"
+    else
+      SERVICE_URL_DATA=",{\"type\":\"text\",\"text\":\": $SERVICE_URL\",\"marks\":[{\"type\":\"link\",\"attrs\":{\"href\":\"$SERVICE_URL\"}}]}"
+    fi
+
+  else
+    RESULT_MESSAGE=FAILED
+    RESULT_EMOJI=:warning:
+    RESULT_EMOJI_TEXT=:warning:
+    RESULT_EMOJI_ID=atlassian-warning
   fi
 }
 
-generate_post_data()
+#Parse each issue block
+curl_function()
+{
+  for issue in $JIRA_ISSUE
+  do
+    #Cut ISSUE ID from JIRA_ISSUE block
+    issue_id=`echo $issue | sed "s/_/ /g" | grep -o -P "(?<=[\h]{2})${JIRA_REG}(?=:)"`
+
+    #Complete comment message by commit author and url
+    GIT_COMMIT_AUTHOR=`echo $issue | sed "s/_/ /g" | grep -o -P "(?<=\|\#\|).*(?='$)"`
+    
+    GIT_COMMIT=`echo $issue | grep -o -P "[\da-z]{40}"`
+    COMMIT_URL="https://github.com/`echo "${GIT_URL:15: -4}"`/commit/`echo $GIT_COMMIT`"
+
+    #Run http request to jira ip for write comments and generate_post_data function
+    echo -e "\nWrite comment to JIRA issue ID: $issue_id"
+    echo "--------------------------------------"
+    http_code="$(
+      curl -s -o response.txt -w "%{http_code}" --request POST \
+        --url "$JIRA_URL/rest/api/3/issue/$issue_id/comment" \
+        --user "$JIRA_CRED" \
+        --header 'Accept: application/json' \
+        --header 'Content-Type: application/json' \
+        --data "$(generate_dynamic_post_data)"
+    )"
+
+    #Handle return codes
+    if [ "$http_code" = "201" ]
+    then
+      echo -e "SUCCESS"
+    else
+      echo -e "JIRA API RETURNED ERROR CODE!"
+      echo -e "HTTP response status code: $http_code"
+      echo -e "Server returned:"
+      cat response.txt
+      exit_code="1"
+    fi
+
+    rm response.txt
+
+  done
+}
+
+generate_dynamic_post_data()
 {
   cat <<EOF
     {"body":{"version":1,"type":"doc","content":[
@@ -64,60 +198,45 @@ generate_post_data()
 EOF
 }
 
-#Parse each issue block
-curl_function()
+resultFunction()
 {
-  for issue in $JIRA_ISSUE
-  do
-    #Cut ISSUE ID from JIRA_ISSUE block
-    issue_id=`echo $issue | sed "s/_/ /g" | grep -o -P "(?<=[\h]{2})${JIRA_REG}(?=:)"`
-
-    #Complete comment message by commit author and url
-    GIT_COMMIT_AUTHOR=`echo $issue | sed "s/_/ /g" | grep -o -P "(?<=\|\#\|)[\d\w\h]+(?='$)"`
-    
-    GIT_COMMIT=`echo $issue | grep -o -P "[\da-z]{40}"`
-    COMMIT_URL="https://github.com/`echo "${GIT_URL:15: -4}"`/commit/`echo $GIT_COMMIT`"
-
-    #Run http request to jira ip for write comments and generate_post_data function
-    echo -e "\nWrite comment to JIRA issue ID: $issue_id"
-    echo "--------------------------------------"
-    http_code="$(
-      curl -s -o response.txt -w "%{http_code}" --request POST \
-        --url "$JIRA_URL/rest/api/3/issue/$issue_id/comment" \
-        --user "$JIRA_CRED" \
-        --header 'Accept: application/json' \
-        --header 'Content-Type: application/json' \
-        --data "$(generate_post_data)"
-    )"
-
-    #Handle return codes
-    if [ "$http_code" = "201" ]
-    then
-      echo -e "SUCCESS"
-    else
-      echo -e "JIRA API RETURNED ERROR CODE!"
-      echo -e "HTTP response status code: $http_code"
-      echo -e "Server returned:"
-      cat response.txt
-      exit_code="1"
-    fi
-
-    rm response.txt
-
-  done
+  if [ "$exit_code" = "1" ]
+  then
+    echo -e "\n--------JIRA API FINISHED WITH ERRORS----------\n"
+    exit 0
+  else
+    echo -e "\n--------JIRA API FINISHED SUCCESSFUL----------\n"
+    exit 0
+  fi
 }
+
+: '
+
+generate_post_data_transition()
+{
+  cat <<EOF
+    {
+      "transition": {
+        "id": "31"
+      }
+    }
+EOF
+}
+'
 
 #-----------------------------------------------SCRIPT PART------------------------------------------------------------------
 
 echo -e "\n------------------JIRA API-------------------\n"
 
+#Parameters by default
 VER_FILE="version.txt"
+SEARCH_MODE_SELECT=commit #from last succesful builded commit
 
 #Get options from console
-while getopts "e:v:" opt
+while getopts "m:v:" opt
 do
    case "$opt" in
-      e ) BUILD_ENV="$OPTARG" ;;
+      m ) SEARCH_MODE_SELECT="$OPTARG" ;;
       v ) VER_FILE="$OPTARG" ;;
       ? ) helpFunction ;; # Print helpFunction in case parameter is non-existent
    esac
@@ -125,96 +244,25 @@ done
 
 # Print helpFunction in case parameters are empty
 if [ -z "$JIRA_URL" ] || [ -z "$JIRA_CRED" ] || [ -z "$JIRA_REG" ] || [ -z "$BUILD_RESULT" ] || [ -z "$JOB_NAME" ] \
-  || [ -z "$GIT_PREVIOUS_COMMIT" ] || [ -z "$BUILD_ENV" ] || [ -z "$BUILD_URL" ] \
-  || [ -z "$SERVICE_ENVIRONMENT" ] || [ -z "$GIT_BRANCH" ] || [ -z "$BUILD_DISPLAY_NAME" ]
+  || [ -z "$BUILD_URL" ] || [ -z "$SERVICE_ENVIRONMENT" ] || [ -z "$GIT_BRANCH" ] || [ -z "$BUILD_DISPLAY_NAME" ]
 then
    echo -e "\nSome or all of the parameters are empty!";
    helpFunction
 fi
 
-#Completing FAILED\SUCCES message
-if [ "$BUILD_RESULT" = "SUCCESS" ]
+get_issues #Get issues from commit messages
+
+#Print founded issues or return message if issues not found
+if [ -z "$JIRA_ISSUE" ]
 then
-  RESULT_MESSAGE=SUCCESS
-  RESULT_EMOJI=:white_check_mark:
-  RESULT_EMOJI_TEXT=:white_check_mark:
-  RESULT_EMOJI_ID=2705
-
-  DEPLOY_MESSAGE="]},
-    {\"type\":\"paragraph\",\"content\":[
-      {\"type\":\"emoji\",\"attrs\":{\"shortName\":\":gear:\",\"id\":\"2699\",\"text\":\":gear:\"}},
-      {\"type\":\"text\",\"text\":\"  Deployed to \"},
-      {\"type\":\"text\",\"text\":\"$SERVICE_ENVIRONMENT\",\"marks\":[{\"type\":\"strong\"}]},
-      {\"type\":\"text\",\"text\":\" environment\"}"
-
-  #Completing service URL message
-  if [ -z "$SERVICE_URL" ]
-  then
-    echo -e "Skip writing service URL...\n"
-  else
-    SERVICE_URL_DATA=",{\"type\":\"text\",\"text\":\": $SERVICE_URL\",\"marks\":[{\"type\":\"link\",\"attrs\":{\"href\":\"$SERVICE_URL\"}}]}"
-  fi
-
-else
-  RESULT_MESSAGE=FAILED
-  RESULT_EMOJI=:warning:
-  RESULT_EMOJI_TEXT=:warning:
-  RESULT_EMOJI_ID=atlassian-warning
-fi
-
-#If it's first build, script will be use the last commit in git
-if [ "$GIT_PREVIOUS_COMMIT" = "null" ]
-then
-   GIT_PREVIOUS_COMMIT=`git log -1 --skip 1 --pretty=format:"%H"`
-fi &&
-
-#If it's fixed build, script will be use last successful builded commit
-if [ "$FIXED_BUILD" = "1" ]
-then
-  GIT_PREVIOUS_COMMIT=$GIT_PREVIOUS_SUCCESSFUL_COMMIT
-  RESULT_MESSAGE=FIXED
-fi
-
-# try\catch block for getting issues
-{ # try
-  #Get git parameters
-  GIT_URL=`git config --get remote.origin.url` &&
-
-  #Switch between issue search metod
-  if [ "$BUILD_ENV" = "dev" ]
-  then
-    #Get issuses blocks from a git log
-    JIRA_ISSUE=`git log $GIT_PREVIOUS_COMMIT..$GIT_BRANCH --pretty=format:"'%H  %s  |#|%an'" | grep -P "(?<=[\h]{2})$JIRA_REG(?=:)" | sed "s/ /_/g"`
-    NO_ISSUES="No issues found from $GIT_PREVIOUS_COMMIT to last commit"
-  else
-    #Try to read file with version
-    { # try
-      VERSION=`cat $VER_FILE`
-    } || { # catch
-      echo -e "\n$VER_FILE not found"
-      exit_code="1"
-      resultFunction
-    }
-    #Get issuses blocks from a git log
-    JIRA_ISSUE=`git log $VERSION..$GIT_BRANCH --pretty=format:"'%H  %s  |#|%an'" | grep -P "(?<=[\h]{2})$JIRA_REG(?=:)" | sed "s/ /_/g"`
-    NO_ISSUES="No issues found from tag $VERSION to last commit"
-  fi &&
-
-  #Print founded issues and return message if issues not found
-  if [ -z "$JIRA_ISSUE" ]
-  then
-    echo -e "\n$NO_ISSUES"
-    exit_code="1"
-    resultFunction
-  else
-    echo -e "Found issues: \n$JIRA_ISSUE"
-    curl_function
-  fi
-} || { # catch
-  #Return error if something wrong in try\catch block for getting issues
-  echo -e "\nERROR WITH GETTING ISSUES"
+  echo -e "\nNo issues found from $GITLOG_FROM to $GIT_BRANCH"
   exit_code="1"
   resultFunction
-}
-#Finished script by result function
-resultFunction
+else
+  echo -e "Found issues: \n$JIRA_ISSUE"
+  
+  generate_static_post_data #Generate static data for issue comment
+  curl_function #Post comments by JIRA API
+fi
+
+resultFunction #Finish script by result function
