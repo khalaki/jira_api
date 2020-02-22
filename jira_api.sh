@@ -104,8 +104,7 @@ get_issues()
   #PRINT FOUNDED ISSUES OR RETURN MESSAGE IF ISSUES NOT FOUND
   if [ -z "$JIRA_ISSUE" ]
   then
-    echo -e "\nIssues not found!"
-    exit_code="1"
+    echo -e "Issues not found!"
     resultFunction
   else
     echo -e "Found issues: \n$JIRA_ISSUE"
@@ -132,7 +131,7 @@ generate_static_post_data()
     #Completing service URL message
     if [ -z "$SERVICE_URL" ]
     then
-      echo -e "Skip writing service URL...\n"
+      echo -e "Skip writing service URL (can be added by \$SERVICE_URL variable)"
     else
       SERVICE_URL_DATA=",{\"type\":\"text\",\"text\":\": $SERVICE_URL\",\"marks\":[{\"type\":\"link\",\"attrs\":{\"href\":\"$SERVICE_URL\"}}]}"
     fi
