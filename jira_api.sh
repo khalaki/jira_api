@@ -4,13 +4,11 @@
 
 #1. one issue, two commits
 #2. transitions
-#3. other branches build
 
 #-----------------------------------------------FUNCTION PART------------------------------------------------------------------
 helpFunction()
 {
   echo -e "\nRequire variables:                                                 Description:                       Current values:"
-  #echo "___________________________________________________________________________________________________________________________________________________"
   echo -e "\$JIRA_URL                       - JIRA site URL                    https://site.atlassian.net         $JIRA_URL"
   echo -e "\$JIRA_CRED                      - JIRA cred                        user@mail.xyz:token                $JIRA_CRED"
   echo -e "\$JIRA_REG                       - JIRA issue regexp                PRO-\d*                            $JIRA_REG"
@@ -22,11 +20,9 @@ helpFunction()
   echo -e "\$SERVICE_ENVIRONMENT            - Service environment              development/staging/production     $SERVICE_ENVIRONMENT"
 
   echo -e "\nOptional variables:"
-  #echo "___________________________________________________________________________________________________________________________________________________"
   echo -e "\$SERVICE_URL                    - Service URL                      https://some.service.net           $SERVICE_URL"   
 
   echo -e "\nOptional parameters:"
-  #echo "___________________________________________________________________________________________________________________________________________________"
   echo -e "-m commit/tag                   - Issues search mode               by default: commit                  $SEARCH_MODE_SELECT"
   echo -e "-v \"some_file_name\"             - Version file                     by default: \"version.txt\"           $VER_FILE"
 
@@ -49,7 +45,7 @@ get_issues()
 
   # SWITCH BETWEEN ISSUES SEARCH MODE
   #Logic for commit search mode
-  if [ "$SEARCH_MODE_SELECT" = "commit" ]; then
+  if [ "$SEARCH_MODE_SELECT" = "commit" ] || [ "$SEARCH_MODE_SELECT" = "dev" ]; then #old config support
     echo -e "Selected \"by commit\" search mode"
     #If GIT_PREVIOUS_COMMIT available, use it for search issues
     if [[ "$GIT_PREVIOUS_COMMIT" =~ ^[0-9a-z]{40}$ ]]; then
@@ -247,9 +243,11 @@ VER_FILE="version.txt"
 SEARCH_MODE_SELECT=commit #from last succesful builded commit
 
 #Get options from console
-while getopts "m:v:" opt
+while getopts "m:v:e:" opt
 do
    case "$opt" in
+      #old config support
+      e ) SEARCH_MODE_SELECT="$OPTARG" ;;
       m ) SEARCH_MODE_SELECT="$OPTARG" ;;
       v ) VER_FILE="$OPTARG" ;;
       ? ) helpFunction ;; # Print helpFunction in case parameter is non-existent
