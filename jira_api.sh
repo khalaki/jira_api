@@ -9,15 +9,15 @@
 helpFunction()
 {
   echo -e "\nRequire variables:                                                 Description:                       Current values:"
-  #echo -e "\$JIRA_URL                       - JIRA site URL                    https://site.atlassian.net         $JIRA_URL"
+  echo -e "\$JIRA_URL                       - JIRA site URL                    https://site.atlassian.net         $JIRA_URL"
   echo -e "\$JIRA_CRED                      - JIRA cred                        user@mail.xyz:token                $JIRA_CRED"
-  #echo -e "\$JIRA_REG                       - JIRA issue regexp                PRO-\d*                            $JIRA_REG"
-  #echo -e "\$BUILD_RESULT                   - Build result                     must be SUCCESS if not fails       $BUILD_RESULT"
+  echo -e "\$JIRA_REG                       - JIRA issue regexp                PRO-\d*                            $JIRA_REG"
+  echo -e "\$BUILD_RESULT                   - Build result                     must be SUCCESS if not fails       $BUILD_RESULT"
   echo -e "\$JOB_NAME                       - Job name                         any                                $JOB_NAME"
   echo -e "\$BUILD_DISPLAY_NAME             - Build display name               any                                $BUILD_DISPLAY_NAME"
   echo -e "\$BUILD_URL                      - Build URL                        https://jenkins.site.net           $BUILD_URL"
-  #echo -e "\$GIT_BRANCH                     - Current git branch               any                                $GIT_BRANCH"
-  #echo -e "\$SERVICE_ENVIRONMENT            - Service environment              development/staging/production     $SERVICE_ENVIRONMENT"
+  echo -e "\$GIT_BRANCH                     - Current git branch               any                                $GIT_BRANCH"
+  echo -e "\$SERVICE_ENVIRONMENT            - Service environment              development/staging/production     $SERVICE_ENVIRONMENT"
 
   echo -e "\nOptional variables:"
   echo -e "\$SERVICE_URL                    - Service URL                      https://some.service.net           $SERVICE_URL"   
@@ -25,6 +25,9 @@ helpFunction()
   echo -e "\nOptional parameters:"
   echo -e "-m commit/tag                   - Issues search mode               by default: commit                  $SEARCH_MODE_SELECT"
   echo -e "-v \"some_file_name\"             - Version file                     by default: \"version.txt\"           $VER_FILE"
+
+  echo -e "\nTo get issues from tag stored in file or \$ver variable, to current commit use: \"./jira_api.sh -m tag\","
+  echo -e "or specified filename  \"./jira_api.sh -m tag -v 'filename'\"\n"
 
   exit_code="1"
   resultFunction
@@ -64,16 +67,22 @@ get_issues()
     fi
   #Logic for tag search mode
   elif [ "$SEARCH_MODE_SELECT" = "tag" ]; then
-      echo -e "Selected \"by tag\" search mode"
+    echo -e "Selected \"by tag\" search mode"
+    if [ -z "$ver" ]; then
+      GITLOG_FROM=$ver
+      echo -e "Used tag from \$ver=$GITLOG_FROM"
+    else
       #Try to read file with version
-    { # try
-      GITLOG_FROM=`cat $VER_FILE`
-    } || { # catch
+      { # try
+        GITLOG_FROM=`cat $VER_FILE`
+        echo -e "Used tag from \$VER_FILE=$GITLOG_FROM"
+      } || { # catch
       #Print error message if version file not tound
       echo -e "$VER_FILE not found"
       exit_code="1"
       resultFunction
-    }
+      }
+    fi
   else
     echo -e "\"-m $SEARCH_MODE_SELECT\" parameter is not allowed! See help"
     helpFunction
@@ -239,29 +248,6 @@ EOF
 
 echo -e "IRA API STARTED"
 
-# Jenkins
-{
-  GIT_PREVIOUS_COMMIT=${currentBuild.previousBuild.buildVariables.GIT_COMMIT}
-} || {
-  echo "No GIT_PREVIOUS_COMMIT variable"
-}
-{
-  GIT_PREVIOUS_SUCCESSFUL_COMMIT=${currentBuild.previousSuccessfulBuild.buildVariables.GIT_COMMIT}
-} || {
-  echo "No GIT_PREVIOUS_SUCCESSFUL_COMMIT variable"
-}
-
-#API variables
-JIRA_URL="https://xalak.atlassian.net"
-JIRA_REG='ABJ-\\d*'
-BUILD_RESULT=${currentBuild.result}
-#Fixed build block
-if [ ${currentBuild.previousBuild.result} = 'FAILURE' ]; then
-    if [ ${currentBuild.result} = 'SUCCESS' ]; then
-        env.FIXED_BUILD = "1"
-    fi
-fi
-
 #Parameters by default
 VER_FILE="version.txt"
 SEARCH_MODE_SELECT=commit #from last succesful builded commit
@@ -280,7 +266,7 @@ done
 
 # Print helpFunction in case parameters are empty
 if [ -z "$JIRA_URL" ] || [ -z "$JIRA_CRED" ] || [ -z "$JIRA_REG" ] || [ -z "$BUILD_RESULT" ] || [ -z "$JOB_NAME" ] \
-  || [ -z "$BUILD_URL" ] || [ -z "$SERVICE_ENVIRONMENT" ] || [ -z "$GIT_BRANCH" ] || [ -z "$BUILD_DISPLAY_NAME" ]
+  || [ -z "$BUILD_URL" ] || [ -z "$SERVICE_ENVIRONMENT" ] || [ -z "$BUILD_DISPLAY_NAME" ]
 then
    echo -e "Some or all of the parameters are empty!";
    helpFunction
