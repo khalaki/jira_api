@@ -9,15 +9,15 @@
 helpFunction()
 {
   echo -e "\nRequire variables:                                                 Description:                       Current values:"
-  echo -e "\$JIRA_URL                       - JIRA site URL                    https://site.atlassian.net         $JIRA_URL"
+  #echo -e "\$JIRA_URL                       - JIRA site URL                    https://site.atlassian.net         $JIRA_URL"
   echo -e "\$JIRA_CRED                      - JIRA cred                        user@mail.xyz:token                $JIRA_CRED"
-  echo -e "\$JIRA_REG                       - JIRA issue regexp                PRO-\d*                            $JIRA_REG"
-  echo -e "\$BUILD_RESULT                   - Build result                     must be SUCCESS if not fails       $BUILD_RESULT"
+  #echo -e "\$JIRA_REG                       - JIRA issue regexp                PRO-\d*                            $JIRA_REG"
+  #echo -e "\$BUILD_RESULT                   - Build result                     must be SUCCESS if not fails       $BUILD_RESULT"
   echo -e "\$JOB_NAME                       - Job name                         any                                $JOB_NAME"
   echo -e "\$BUILD_DISPLAY_NAME             - Build display name               any                                $BUILD_DISPLAY_NAME"
   echo -e "\$BUILD_URL                      - Build URL                        https://jenkins.site.net           $BUILD_URL"
-  echo -e "\$GIT_BRANCH                     - Current git branch               any                                $GIT_BRANCH"
-  echo -e "\$SERVICE_ENVIRONMENT            - Service environment              development/staging/production     $SERVICE_ENVIRONMENT"
+  #echo -e "\$GIT_BRANCH                     - Current git branch               any                                $GIT_BRANCH"
+  #echo -e "\$SERVICE_ENVIRONMENT            - Service environment              development/staging/production     $SERVICE_ENVIRONMENT"
 
   echo -e "\nOptional variables:"
   echo -e "\$SERVICE_URL                    - Service URL                      https://some.service.net           $SERVICE_URL"   
@@ -35,6 +35,7 @@ get_issues()
   # TRY TO GET GIT PARAMETERS
   { # try
     GIT_URL=`git config --get remote.origin.url`
+    GIT_BRANCH=`git branch --show-current`
     echo -e "Git found in current directory"
   } || { # catch
     echo -e "Error with getting git parameters. Script cannot find git in directory tree or remote origin URL"
@@ -237,6 +238,29 @@ EOF
 #-----------------------------------------------SCRIPT PART------------------------------------------------------------------
 
 echo -e "IRA API STARTED"
+
+# Jenkins
+{
+  GIT_PREVIOUS_COMMIT=${currentBuild.previousBuild.buildVariables.GIT_COMMIT}
+} || {
+  echo "No GIT_PREVIOUS_COMMIT variable"
+}
+{
+  GIT_PREVIOUS_SUCCESSFUL_COMMIT=${currentBuild.previousSuccessfulBuild.buildVariables.GIT_COMMIT}
+} || {
+  echo "No GIT_PREVIOUS_SUCCESSFUL_COMMIT variable"
+}
+
+#API variables
+JIRA_URL="https://xalak.atlassian.net"
+JIRA_REG='ABJ-\\d*'
+BUILD_RESULT=${currentBuild.result}
+#Fixed build block
+if [ ${currentBuild.previousBuild.result} = 'FAILURE' ]; then
+    if [ ${currentBuild.result} = 'SUCCESS' ]; then
+        env.FIXED_BUILD = "1"
+    fi
+fi
 
 #Parameters by default
 VER_FILE="version.txt"
