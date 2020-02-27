@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#v0.1 beta
+#v0.2 beta
 
 #1. one issue, two commits
 #2. transitions
@@ -101,6 +101,7 @@ get_issues()
       TESTED_JOB_NAME=`cat JOB_NAME.txt`
       TESTED_BUILD_DISPLAY_NAME=`cat BUILD_DISPLAY_NAME.txt`
       TESTED_SERVICE_ENVIRONMENT=`cat SERVICE_ENVIRONMENT.txt`
+      GIT_URL=`cat GIT_URL.txt`
       JENKINS_JOB="automation test"
     else
       echo -e "Start parsing issues from $SEARCH_MODE_SELECT $GITLOG_FROM to last commit in $GIT_BRANCH branch"
@@ -139,6 +140,7 @@ get_git_parameters() {
   echo $JOB_NAME > JOB_NAME.txt
   echo $BUILD_DISPLAY_NAME > BUILD_DISPLAY_NAME.txt
   echo $SERVICE_ENVIRONMENT > SERVICE_ENVIRONMENT.txt
+  echo $GIT_URL > GIT_URL.txt
   JENKINS_JOB="build"
 }
 
