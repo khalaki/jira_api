@@ -101,6 +101,7 @@ get_issues()
       TESTED_JOB_NAME=`cat JOB_NAME.txt`
       TESTED_BUILD_DISPLAY_NAME=`cat BUILD_DISPLAY_NAME.txt`
       TESTED_SERVICE_ENVIRONMENT=`cat SERVICE_ENVIRONMENT.txt`
+      TESTED_BUILD_URL=`cat BUILD_URL.txt`
       GIT_URL=`cat GIT_URL.txt`
       JENKINS_JOB="automation test"
     else
@@ -141,6 +142,7 @@ get_git_parameters() {
   echo $BUILD_DISPLAY_NAME > BUILD_DISPLAY_NAME.txt
   echo $SERVICE_ENVIRONMENT > SERVICE_ENVIRONMENT.txt
   echo $GIT_URL > GIT_URL.txt
+  echo $BUILD_URL > BUILD_URL.txt
   JENKINS_JOB="build"
 }
 
@@ -154,37 +156,45 @@ generate_static_post_data()
     RESULT_EMOJI_TEXT=:white_check_mark:
     RESULT_EMOJI_ID=2705
 
-    if [ ! -z "$SERVICE_ENVIRONMENT" ] && [ "$SEARCH_MODE_SELECT" != "file" ]; then
-      DEPLOY_MESSAGE="]},
-        {\"type\":\"paragraph\",\"content\":[
-          {\"type\":\"emoji\",\"attrs\":{\"shortName\":\":gear:\",\"id\":\"2699\",\"text\":\":gear:\"}},
-          {\"type\":\"text\",\"text\":\"  Deployed to \"},
-          {\"type\":\"text\",\"text\":\"$SERVICE_ENVIRONMENT\",\"marks\":[{\"type\":\"strong\"}]},
-          {\"type\":\"text\",\"text\":\" environment\"}"
-    elif [ "$SEARCH_MODE_SELECT" = "file" ]; then
-      DEPLOY_MESSAGE="]},
-        {\"type\":\"paragraph\",\"content\":[
-          {\"type\":\"emoji\",\"attrs\":{\"shortName\":\":gear:\",\"id\":\"2699\",\"text\":\":gear:\"}},
-          {\"type\":\"text\",\"text\":\"  Tested job - \"},
-          {\"type\":\"text\",\"text\":\"$TESTED_JOB_NAME | $TESTED_BUILD_DISPLAY_NAME\",\"marks\":[{\"type\":\"strong\"}]},
-          {\"type\":\"text\",\"text\":\" in $TESTED_SERVICE_ENVIRONMENT environment\"}"
-    else
-      echo -e "Skip writing \"deployed to\" message (can be added by \$SERVICE_ENVIRONMENT variable)"
-    fi
-
-    #Completing service URL message
-    if [ -z "$SERVICE_URL" ]
-    then
-      echo -e "Skip writing service URL (can be added by \$SERVICE_URL variable)"
-    else
-      SERVICE_URL_DATA=",{\"type\":\"text\",\"text\":\": $SERVICE_URL\",\"marks\":[{\"type\":\"link\",\"attrs\":{\"href\":\"$SERVICE_URL\"}}]}"
-    fi
+    generate_static_post_data_message
 
   else
+    if [ "$SEARCH_MODE_SELECT" = "file" ]; then
+      generate_static_post_data_message
+    fi
     RESULT_MESSAGE=FAILED
     RESULT_EMOJI=:warning:
     RESULT_EMOJI_TEXT=:warning:
     RESULT_EMOJI_ID=atlassian-warning
+  fi
+}
+
+generate_static_post_data_message() {
+  if [ ! -z "$SERVICE_ENVIRONMENT" ] && [ "$SEARCH_MODE_SELECT" != "file" ]; then
+    DEPLOY_MESSAGE="]},
+      {\"type\":\"paragraph\",\"content\":[
+        {\"type\":\"emoji\",\"attrs\":{\"shortName\":\":gear:\",\"id\":\"2699\",\"text\":\":gear:\"}},
+        {\"type\":\"text\",\"text\":\"  Deployed to \"},
+        {\"type\":\"text\",\"text\":\"$SERVICE_ENVIRONMENT\",\"marks\":[{\"type\":\"strong\"}]},
+        {\"type\":\"text\",\"text\":\" environment\"}"
+  elif [ "$SEARCH_MODE_SELECT" = "file" ]; then
+    DEPLOY_MESSAGE="]},
+      {\"type\":\"paragraph\",\"content\":[
+        {\"type\":\"emoji\",\"attrs\":{\"shortName\":\":gear:\",\"id\":\"2699\",\"text\":\":gear:\"}},
+        {\"type\":\"text\",\"text\":\"  Tested job - \"},
+        {\"type\":\"text\",\"text\":\"$TESTED_JOB_NAME | $TESTED_BUILD_DISPLAY_NAME\",\"marks\":[{\"type\":\"strong\"}]},
+        {\"type\":\"text\",\"text\":\" link\",\"marks\":[{\"type\":\"link\",\"attrs\":{\"href\":\"$TESTED_BUILD_URL\"}}]},
+        {\"type\":\"text\",\"text\":\" in $TESTED_SERVICE_ENVIRONMENT environment\"}"
+  else
+    echo -e "Skip writing \"deployed to\" message (can be added by \$SERVICE_ENVIRONMENT variable)"
+  fi
+
+  #Completing service URL message
+  if [ -z "$SERVICE_URL" ]
+  then
+    echo -e "Skip writing service URL (can be added by \$SERVICE_URL variable)"
+  else
+    SERVICE_URL_DATA=",{\"type\":\"text\",\"text\":\": $SERVICE_URL\",\"marks\":[{\"type\":\"link\",\"attrs\":{\"href\":\"$SERVICE_URL\"}}]}"
   fi
 }
 
