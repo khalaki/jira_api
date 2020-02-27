@@ -119,6 +119,7 @@ get_issues()
   if [ -z "$JIRA_ISSUE" ]
   then
     echo -e "Issues not found!"
+    echo "Issues not found!" > JIRA_ISSUE.txt
     resultFunction
   else
     echo -e "Found issues: \n$JIRA_ISSUE"
