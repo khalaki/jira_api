@@ -5,6 +5,10 @@
 #1. one issue, two commits
 #2. transitions
 
+#$FIX_BUILD
+#$SERVICE_ENVIRONMENT
+#$SERVICE_URL
+
 #-----------------------------------------------FUNCTION PART------------------------------------------------------------------
 helpFunction()
 {
@@ -16,14 +20,13 @@ helpFunction()
   echo -e "\$JOB_NAME                       - Job name                         any                                $JOB_NAME"
   echo -e "\$BUILD_DISPLAY_NAME             - Build display name               any                                $BUILD_DISPLAY_NAME"
   echo -e "\$BUILD_URL                      - Build URL                        https://jenkins.site.net           $BUILD_URL"
-  echo -e "\$GIT_BRANCH                     - Current git branch               any                                $GIT_BRANCH"
-  echo -e "\$SERVICE_ENVIRONMENT            - Service environment              development/staging/production     $SERVICE_ENVIRONMENT"
 
   echo -e "\nOptional variables:"
-  echo -e "\$SERVICE_URL                    - Service URL                      https://some.service.net           $SERVICE_URL"   
+  echo -e "\$SERVICE_URL                    - Service URL                      https://some.service.net           $SERVICE_URL"
+  echo -e "\$SERVICE_ENVIRONMENT            - Service environment              development/staging/production     $SERVICE_ENVIRONMENT"   
 
   echo -e "\nOptional parameters:"
-  echo -e "-m commit/tag                   - Issues search mode               by default: commit                  $SEARCH_MODE_SELECT"
+  echo -e "-m commit/tag/file                - Issues search mode               by default: commit                  $SEARCH_MODE_SELECT"
   echo -e "-v \"some_file_name\"             - Version file                     by default: \"version.txt\"           $VER_FILE"
 
   echo -e "\nTo get issues from tag stored in file or \$ver variable, to current commit use: \"./jira_api.sh -m tag\","
@@ -35,22 +38,12 @@ helpFunction()
 
 get_issues()
 {
-  # TRY TO GET GIT PARAMETERS
-  { # try
-    GIT_URL=`git config --get remote.origin.url`
-    GIT_BRANCH=`git branch --show-current`
-    echo -e "Git found in current directory"
-  } || { # catch
-    echo -e "Error with getting git parameters. Script cannot find git in directory tree or remote origin URL"
-    exit_code="1"
-    resultFunction
-  }
-
-
   # SWITCH BETWEEN ISSUES SEARCH MODE
+  
   #Logic for commit search mode
   if [ "$SEARCH_MODE_SELECT" = "commit" ] || [ "$SEARCH_MODE_SELECT" = "dev" ]; then #old config support
     echo -e "Selected \"by commit\" search mode"
+    get_git_parameters
     #If GIT_PREVIOUS_COMMIT available, use it for search issues
     if [[ "$GIT_PREVIOUS_COMMIT" =~ ^[0-9a-z]{40}$ ]]; then
       echo -e "Variable \$GIT_PREVIOUS_COMMIT is available, if build not fixed it will be used for search"
@@ -63,11 +56,13 @@ get_issues()
     #In any other causes script will be use the last commit in git
     else
       echo -e "Variable \$GIT_PREVIOUS_COMMIT is not available. Last git commit will be used for search"
-      USE_GITLOG_LAST_COMMIT="true"
+      SEARCH_MODE_COMMAND="last_commit"
     fi
+  
   #Logic for tag search mode
   elif [ "$SEARCH_MODE_SELECT" = "tag" ]; then
     echo -e "Selected \"by tag\" search mode"
+    get_git_parameters
     if [ -z "$ver" ]; then
       GITLOG_FROM=$ver
       echo -e "Used tag from \$ver=$GITLOG_FROM"
@@ -83,6 +78,11 @@ get_issues()
       resultFunction
       }
     fi
+  
+  #Logic for file search mode
+  elif [ "$SEARCH_MODE_SELECT" = "file" ]; then
+    echo -e "Selected \"from_file\" search mode"
+    SEARCH_MODE_COMMAND="from_file"
   else
     echo -e "\"-m $SEARCH_MODE_SELECT\" parameter is not allowed! See help"
     helpFunction
@@ -91,11 +91,17 @@ get_issues()
 
   # GETTING COMMITS FROM GIT LOG
   { #try
-    if [ "$USE_GITLOG_LAST_COMMIT" = "true" ]
+    if [ "$SEARCH_MODE_COMMAND" = "last_commit" ]
     then
       GITLOG_COMMIT=`git log -1 --pretty=format:"%H"`
       echo -e "Start parsing issues by commit $GITLOG_COMMIT in $GIT_BRANCH"
       JIRA_ISSUE=`git log -1 --pretty=format:"%H  %s  |#|%an|" | grep -P "(?<=[\h]{2})$JIRA_REG(?=:)" | sed "s/ /_/g"`
+    elif [ "$SEARCH_MODE_COMMAND" = "from_file" ]; then
+      JIRA_ISSUE=`cat JIRA_ISSUE.txt`
+      TESTED_JOB_NAME=`cat JOB_NAME.txt`
+      TESTED_BUILD_DISPLAY_NAME=`cat BUILD_DISPLAY_NAME.txt`
+      TESTED_SERVICE_ENVIRONMENT=`cat SERVICE_ENVIRONMENT.txt`
+      JENKINS_JOB="automation test"
     else
       echo -e "Start parsing issues from $SEARCH_MODE_SELECT $GITLOG_FROM to last commit in $GIT_BRANCH branch"
       JIRA_ISSUE=`git log $GITLOG_FROM..$GIT_BRANCH --pretty=format:"%H  %s  |#|%an|" | grep -P "(?<=[\h]{2})$JIRA_REG(?=:)" | sed "s/ /_/g"`
@@ -114,7 +120,26 @@ get_issues()
     resultFunction
   else
     echo -e "Found issues: \n$JIRA_ISSUE"
+    echo $JIRA_ISSUE > JIRA_ISSUE.txt
   fi
+}
+
+get_git_parameters() {
+  # TRY TO GET GIT PARAMETERS
+  { # try
+    GIT_URL=`git config --get remote.origin.url`
+    GIT_BRANCH=`git branch --show-current`
+    echo -e "Git found in current directory"
+  } || { # catch
+    echo -e "Error with getting git parameters. Script cannot find git in directory tree or remote origin URL"
+    exit_code="1"
+    resultFunction
+  }
+  #Save files for automation jobs
+  echo $JOB_NAME > JOB_NAME.txt
+  echo $BUILD_DISPLAY_NAME > BUILD_DISPLAY_NAME.txt
+  echo $SERVICE_ENVIRONMENT > SERVICE_ENVIRONMENT.txt
+  JENKINS_JOB="build"
 }
 
 generate_static_post_data()
@@ -127,12 +152,23 @@ generate_static_post_data()
     RESULT_EMOJI_TEXT=:white_check_mark:
     RESULT_EMOJI_ID=2705
 
-    DEPLOY_MESSAGE="]},
-      {\"type\":\"paragraph\",\"content\":[
-        {\"type\":\"emoji\",\"attrs\":{\"shortName\":\":gear:\",\"id\":\"2699\",\"text\":\":gear:\"}},
-        {\"type\":\"text\",\"text\":\"  Deployed to \"},
-        {\"type\":\"text\",\"text\":\"$SERVICE_ENVIRONMENT\",\"marks\":[{\"type\":\"strong\"}]},
-        {\"type\":\"text\",\"text\":\" environment\"}"
+    if [ ! -z "$SERVICE_ENVIRONMENT" ] && [ "$SEARCH_MODE_SELECT" != "file" ]; then
+      DEPLOY_MESSAGE="]},
+        {\"type\":\"paragraph\",\"content\":[
+          {\"type\":\"emoji\",\"attrs\":{\"shortName\":\":gear:\",\"id\":\"2699\",\"text\":\":gear:\"}},
+          {\"type\":\"text\",\"text\":\"  Deployed to \"},
+          {\"type\":\"text\",\"text\":\"$SERVICE_ENVIRONMENT\",\"marks\":[{\"type\":\"strong\"}]},
+          {\"type\":\"text\",\"text\":\" environment\"}"
+    elif [ "$SEARCH_MODE_SELECT" = "file" ]; then
+      DEPLOY_MESSAGE="]},
+        {\"type\":\"paragraph\",\"content\":[
+          {\"type\":\"emoji\",\"attrs\":{\"shortName\":\":gear:\",\"id\":\"2699\",\"text\":\":gear:\"}},
+          {\"type\":\"text\",\"text\":\"  Tested job - \"},
+          {\"type\":\"text\",\"text\":\"$TESTED_JOB_NAME | $TESTED_BUILD_DISPLAY_NAME\",\"marks\":[{\"type\":\"strong\"}]},
+          {\"type\":\"text\",\"text\":\" in $TESTED_SERVICE_ENVIRONMENT environment\"}"
+    else
+      echo -e "Skip writing \"deployed to\" message (can be added by \$SERVICE_ENVIRONMENT variable)"
+    fi
 
     #Completing service URL message
     if [ -z "$SERVICE_URL" ]
@@ -203,7 +239,7 @@ generate_dynamic_post_data()
     {"type":"paragraph","content":[
       {"type":"emoji","attrs":{"shortName":"$RESULT_EMOJI","id":"$RESULT_EMOJI_ID","text":"$RESULT_EMOJI_TEXT"}},
       {"type":"text","text":" $RESULT_MESSAGE:","marks":[{"type":"strong"}]},
-      {"type":"text","text":" Jenkins build - "},
+      {"type":"text","text":" Jenkins $JENKINS_JOB - "},
       {"type":"text","text":"$JOB_NAME | $BUILD_DISPLAY_NAME","marks":[{"type":"strong"}]},
       {"type":"text","text":"  "},
       {"type":"text","text":"link","marks":[{"type":"link","attrs":{"href":"$BUILD_URL"}}]}]},
@@ -230,20 +266,6 @@ resultFunction()
   fi
 }
 
-: '
-
-generate_post_data_transition()
-{
-  cat <<EOF
-    {
-      "transition": {
-        "id": "31"
-      }
-    }
-EOF
-}
-'
-
 #-----------------------------------------------SCRIPT PART------------------------------------------------------------------
 
 echo -e "IRA API STARTED"
@@ -266,7 +288,7 @@ done
 
 # Print helpFunction in case parameters are empty
 if [ -z "$JIRA_URL" ] || [ -z "$JIRA_CRED" ] || [ -z "$JIRA_REG" ] || [ -z "$BUILD_RESULT" ] || [ -z "$JOB_NAME" ] \
-  || [ -z "$BUILD_URL" ] || [ -z "$SERVICE_ENVIRONMENT" ] || [ -z "$BUILD_DISPLAY_NAME" ]
+  || [ -z "$BUILD_URL" ] || [ -z "$BUILD_DISPLAY_NAME" ]
 then
    echo -e "Some or all of the parameters are empty!";
    helpFunction
