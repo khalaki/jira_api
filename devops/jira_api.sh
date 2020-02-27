@@ -116,7 +116,7 @@ get_issues()
 
   
   #PRINT FOUNDED ISSUES OR RETURN MESSAGE IF ISSUES NOT FOUND
-  if [ -z "$JIRA_ISSUE" ]
+  if [[ "$JIRA_ISSUE" =~ (?<=[\h]{2})$JIRA_REG(?=:) ]]
   then
     echo -e "Issues not found!"
     echo "Issues not found!" > JIRA_ISSUE.txt
