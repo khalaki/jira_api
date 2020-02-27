@@ -116,10 +116,10 @@ get_issues()
 
   
   #PRINT FOUNDED ISSUES OR RETURN MESSAGE IF ISSUES NOT FOUND
-  if [[ "$JIRA_ISSUE" =~ (?<=[\h]{2})$JIRA_REG(?=:) ]]
+  if [ -z "$JIRA_ISSUE" ]
   then
     echo -e "Issues not found!"
-    echo "Issues not found!" > JIRA_ISSUE.txt
+    echo "" > JIRA_ISSUE.txt
     resultFunction
   else
     echo -e "Found issues: \n$JIRA_ISSUE"
