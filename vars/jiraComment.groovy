@@ -1,8 +1,8 @@
 def call(body) {
 
     //Set JIRA site and regex
-    JIRA_URL="https://xalak.atlassian.net"
-    JIRA_REG='ABJ-\\d*'
+    env.JIRA_URL="https://xalak.atlassian.net"
+    env.JIRA_REG='ABJ-\\d*'
 
     //Set fix build variable
     if (currentBuild?.getPreviousBuild()?.result == 'FAILURE') {
