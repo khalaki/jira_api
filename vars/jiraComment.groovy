@@ -30,7 +30,7 @@ def jiraComment() {
     withCredentials([string(credentialsId: 'befadc19-0d06-4214-8a46-781131b8fd98', variable: 'JIRA_CRED')]) {
         sh """
         ls
-        cd devops
+        #cd devops
         #chmod +x jira_api.sh
         #./jira_api.sh
         """
