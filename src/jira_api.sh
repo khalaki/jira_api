@@ -97,13 +97,13 @@ get_issues()
       echo -e "Start parsing issues by commit $GITLOG_COMMIT in $GIT_BRANCH"
       JIRA_ISSUE=`git log -1 --pretty=format:"%H  %s  |#|%an|" | grep -P "(?<=[\h]{2})$JIRA_REG(?=:)" | sed "s/ /_/g"`
     elif [ "$SEARCH_MODE_COMMAND" = "from_file" ]; then
-      JIRA_ISSUE=`cat JIRA_ISSUE.txt`
-      TESTED_JOB_NAME=`cat JOB_NAME.txt`
-      TESTED_BUILD_DISPLAY_NAME=`cat BUILD_DISPLAY_NAME.txt`
-      TESTED_SERVICE_ENVIRONMENT=`cat SERVICE_ENVIRONMENT.txt`
-      TESTED_BUILD_URL=`cat BUILD_URL.txt`
-      GIT_URL=`cat GIT_URL.txt`
-      JENKINS_JOB="automation test"
+      JIRA_ISSUE=$(jq -r '.JIRA_ISSUE' $data_file)
+      TESTED_JOB_NAME=$(jq -r '.JOB_NAME' $data_file)
+      TESTED_BUILD_DISPLAY_NAME=$(jq -r '.BUILD_DISPLAY_NAME' $data_file)
+      TESTED_SERVICE_ENVIRONMENT=$(jq -r '.SERVICE_ENVIRONMENT' $data_file)
+      TESTED_BUILD_URL=$(jq -r '.BUILD_URL' $data_file)
+      GIT_URL=$(jq -r '.GIT_URL' $data_file)
+      
     else
       echo -e "Start parsing issues from $SEARCH_MODE_SELECT $GITLOG_FROM to last commit in $GIT_BRANCH branch"
       JIRA_ISSUE=`git log $GITLOG_FROM..$GIT_BRANCH --pretty=format:"%H  %s  |#|%an|" | grep -P "(?<=[\h]{2})$JIRA_REG(?=:)" | sed "s/ /_/g"`
@@ -119,11 +119,23 @@ get_issues()
   if [ -z "$JIRA_ISSUE" ]
   then
     echo -e "Issues not found!"
-    echo "" > JIRA_ISSUE.txt
+    if [ "$SEARCH_MODE_SELECT" != "file" ]; then
+    jq -n --arg ji "$JIRA_ISSUE" '{JIRA_ISSUE: $ji}' > $data_file
+    fi
     resultFunction
   else
     echo -e "Found issues: \n$JIRA_ISSUE"
-    echo $JIRA_ISSUE > JIRA_ISSUE.txt
+    if [ "$SEARCH_MODE_SELECT" != "file" ]; then
+      jq -n \
+        --arg jn "$JOB_NAME" \
+        --arg bd "$BUILD_DISPLAY_NAME" \
+        --arg se "$SERVICE_ENVIRONMENT" \
+        --arg gu "$GIT_URL" \
+        --arg bu "$BUILD_URL" \
+        --arg ji "$JIRA_ISSUE" \
+        '{JOB_NAME: $jn, BUILD_DISPLAY_NAME: $bd, SERVICE_ENVIRONMENT: $se, GIT_URL: $gu, BUILD_URL: $bu, JIRA_ISSUE: $ji}' \
+        > $data_file
+    fi
   fi
 }
 
@@ -131,24 +143,25 @@ get_git_parameters() {
   # TRY TO GET GIT PARAMETERS
   { # try
     GIT_URL=`git config --get remote.origin.url`
-    GIT_BRANCH=`git branch --show-current`
-    echo -e "Git found in current directory"
+    GIT_VERSION=$(git --version)
+    #GIT_BRANCH=`git branch --show-current 2> /dev/null`
+    echo -e "$GIT_VERSION found in current directory"
   } || { # catch
     echo -e "Error with getting git parameters. Script cannot find git in directory tree or remote origin URL"
     exit_code="1"
     resultFunction
   }
-  #Save files for automation jobs
-  echo $JOB_NAME > JOB_NAME.txt
-  echo $BUILD_DISPLAY_NAME > BUILD_DISPLAY_NAME.txt
-  echo $SERVICE_ENVIRONMENT > SERVICE_ENVIRONMENT.txt
-  echo $GIT_URL > GIT_URL.txt
-  echo $BUILD_URL > BUILD_URL.txt
-  JENKINS_JOB="build"
 }
 
 generate_static_post_data()
 {
+  #Completing BUILD\TEST message
+  if [ "$SEARCH_MODE_SELECT" = "file" ]; then
+    JENKINS_JOB="automation test"
+  else
+    JENKINS_JOB="build"
+  fi
+
   #Completing FAILED\SUCCES message
   if [ "$BUILD_RESULT" = "SUCCESS" ]
   then
@@ -178,7 +191,7 @@ generate_static_post_data_message() {
         {\"type\":\"text\",\"text\":\"  Deployed to \"},
         {\"type\":\"text\",\"text\":\"$SERVICE_ENVIRONMENT\",\"marks\":[{\"type\":\"strong\"}]},
         {\"type\":\"text\",\"text\":\" environment\"}"
-  elif [ "$SEARCH_MODE_SELECT" = "file" ]; then
+  elif [ "$SEARCH_MODE_SELECT" = "file" ] && [ ! -z "$TESTED_SERVICE_ENVIRONMENT" ]; then
     DEPLOY_MESSAGE="]},
       {\"type\":\"paragraph\",\"content\":[
         {\"type\":\"emoji\",\"attrs\":{\"shortName\":\":gear:\",\"id\":\"2699\",\"text\":\":gear:\"}},
@@ -286,13 +299,12 @@ echo -e "IRA API STARTED"
 #Parameters by default
 VER_FILE="version.txt"
 SEARCH_MODE_SELECT=commit #from last succesful builded commit
+data_file='data_for_jira_api.json'
 
 #Get options from console
-while getopts "m:v:e:" opt
+while getopts "m:v:" opt
 do
    case "$opt" in
-      #old config support
-      e ) SEARCH_MODE_SELECT="$OPTARG" ;;
       m ) SEARCH_MODE_SELECT="$OPTARG" ;;
       v ) VER_FILE="$OPTARG" ;;
       ? ) helpFunction ;; # Print helpFunction in case parameter is non-existent
