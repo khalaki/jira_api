@@ -26,13 +26,15 @@ def call(body) {
         println("No GIT_PREVIOUS_SUCCESSFUL_COMMIT variable")
     }
 
+    def fileName = "jira_api.sh"
+    def fileContents = libraryResource(fileName)
+
+    println fileContents
+
     //Set credential variable JIRA_CRED="super@user.xyz:token"
     withCredentials([string(credentialsId: 'befadc19-0d06-4214-8a46-781131b8fd98', variable: 'JIRA_CRED')]) {
         sh """
         ls
-        #cd devops
-        #chmod +x jira_api.sh
-        #./jira_api.sh
         """
     //archiveArtifacts 'devops/*'
     }
