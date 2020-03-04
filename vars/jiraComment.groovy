@@ -1,4 +1,4 @@
-def jiraComment() {
+def call(body) {
 
     //Set JIRA site and regex
     JIRA_URL="https://xalak.atlassian.net"
