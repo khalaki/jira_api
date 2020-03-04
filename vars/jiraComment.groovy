@@ -35,4 +35,5 @@ def jiraComment() {
         #./jira_api.sh
         """
     //archiveArtifacts 'devops/*'
+    }
 }
