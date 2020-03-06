@@ -30,7 +30,7 @@ def call(body) {
     copyArtifacts filter: 'devops/jira_api.sh', fingerprintArtifacts: true, projectName: 'jira_api', selector: lastSuccessful()
 
     //Set credential variable JIRA_CRED="super@user.xyz:token"
-    withCredentials([usernameColonPassword(credentialsId: 'befadc19-0d06-4214-8a46-781131b8fd98', variable: 'JIRA_CRED')]) {
+    withCredentials([string(credentialsId: 'befadc19-0d06-4214-8a46-781131b8fd98', variable: 'JIRA_CRED')]) {
         sh """
             cd devops
             chmod +x jira_api.sh
